@@ -12,6 +12,7 @@ enableGitInfo = true
 enableEmoji = false
 buildFuture = true
 staticDir = ["static", "generated"]
+timeout = 30000
 
 # we use Netlify server-side redirects instead of generated aliases
 disableAliases = true
@@ -108,6 +109,8 @@ disableAliases = true
         contentDir = "content/en"
     [languages.pt-br]
         contentDir = "content/pt-br"
+    [languages.ja]
+        contentDir = "content/ja"
 
 [menu]
   [[menu.main]]
