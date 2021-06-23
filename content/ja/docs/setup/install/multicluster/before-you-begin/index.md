@@ -6,33 +6,27 @@ keywords: [kubernetes,multicluster]
 test: n/a
 owner: istio/wg-environments-maintainers
 ---
-Before you begin a multicluster installation, review the
-[deployment models guide](/docs/ops/deployment/deployment-models)
-which describes the foundational concepts used throughout this guide.
 
-In addition, review the requirements and perform the initial steps below.
+マルチクラスタのインストールを始める前に、このガイドを通じて適用される基本的なコンセプトを記載した[デプロイメントモデルガイド](/ja/docs/ops/deployment/deployment-models)を読んでください。
+
+さらに、次の要件を読んで、最初のステップを実行してください。
 
 ## Requirements
 
 ### Cluster
 
-This guide requires that you have two Kubernetes clusters with any of the
-supported Kubernetes versions: {{< supported_kubernetes_versions >}}.
+このガイドでは、2つのKubernetesクラスタが必要です。
+Kubernetesクラスタは次のバージョンをサポートしています。 {{< supported_kubernetes_versions >}}
 
 ### API Server Access
 
-The API Server in each cluster must be accessible to the other clusters in the
-mesh. Many cloud providers make API Servers publicly accessible via network
-load balancers (NLB). If the API Server is not directly accessible, you will
-have to modify the installation procedure to enable access. For example, the
-[east-west](https://en.wikipedia.org/wiki/East-west_traffic) gateway used in
-the multi-network and primary-remote configurations could also be used
-to enable access to the API Server.
+各クラスタのAPI Serverはメッシュ内の他のクラスタからアクセスできなければなりません。
+多くのクラウドプロバイダは、API Serverをネットワークロードバランサー(NLB)経由で公開アクセスできるようにしています。
+API Serverが直接アクセス出来ない場合、アクセスを実現するためにインストール手順を修正する必要があります。例えば、マルチネットワークとプライマリーリモート設定で使っている[イーストウェスト](https://en.wikipedia.org/wiki/East-west_traffic)ゲートウェイは、API Serverへのアクセスを実現するためにも使えます。
 
 ## Environment Variables
 
-This guide will refer to two clusters: `cluster1` and `cluster2`. The following
-environment variables will be used throughout to simplify the instructions:
+このガイドは2つのクラスタ（ `cluster1` と `cluster2` ） を使います。手順をシンプルにするため、次の環境変数を全体を通じて使います
 
 Variable | Description
 -------- | -----------
@@ -48,50 +42,36 @@ $ export CTX_CLUSTER2=<your cluster2 context>
 
 ## Configure Trust
 
-A multicluster service mesh deployment requires that you establish trust
-between all clusters in the mesh. Depending on the requirements for your
-system, there may be multiple options available for establishing trust.
-See [certificate management](/docs/tasks/security/cert-management/) for
-detailed descriptions and instructions for all available options.
-Depending on which option you choose, the installation instructions for
-Istio may change slightly.
+マルチクラスタのサービスメッシュデプロイには、メッシュ内のすべてのクラスタ間で信頼関係を確立する必要があります。
+あなたのシステム要件に応じて、信頼関係を確立する方法は複数のオプションがあります。
 
-This guide will assume that you use a common root to generate intermediate
-certificates for each cluster. Follow the [instructions](/docs/tasks/security/cert-management/plugin-ca-cert/)
-to generate and push a CA certificate secret to both the `cluster1` and `cluster2`
-clusters.
+[certificate management](/ja/docs/tasks/security/cert-management/) に全ての選択可能なオプションについて、詳細な説明と手順があります。
+選択したオプション毎にIsitoのインストール手順が少し変わる可能性があります。
+
+このガイドでは、各クラスタの中間証明書を生成するのに共通のルート証明書を使うことを仮定します。
+[instructions](/ja/docs/tasks/security/cert-management/plugin-ca-cert/) にしたがって、CA 証明書のシークレットを生成して、`cluster1` と `cluster2` の両方にプッシュしてください。
 
 {{< tip >}}
-If you currently have a single cluster with a self-signed CA (as described
-in [Getting Started](/docs/setup/getting-started/)), you need to
-change the CA using one of the methods described in
-[certificate management](/docs/tasks/security/cert-management/). Changing the
-CA typically requires reinstalling Istio. The installation instructions
-below may have to be altered based on your choice of CA.
+もし、現在シングルクラスタで自己CA証明書を使っている場合 ([Getting Started](/ja/docs/setup/getting-started/)に記載されているように)は、CAを[certificate management](/ja/docs/tasks/security/cert-management/)記載のいずれかの方法を使って変更する必要があります。
+CAの変更には、一般的にIstioの再インストールが必要となります。次のインストール手順はあなたがどのCAを選択したかで変更しなくてはいけないかもしれません。
 {{< /tip >}}
 
 ## Next steps
 
-You're now ready to install an Istio mesh across multiple clusters. The
-particular steps will depend on your requirements for network and
-control plane topology.
+マルチクラスタにIstioをインストール準備ができました。一部のステップは、あなたのネットワークとコントロールプレーンのトポロジーに依存します。
 
-Choose the installation that best fits your needs:
+あなたのニーズに一番合致したインストール方法を選択してください。
 
-- [Install Multi-Primary](/docs/setup/install/multicluster/multi-primary)
+- [Install Multi-Primary](/ja/docs/setup/install/multicluster/multi-primary)
 
-- [Install Primary-Remote](/docs/setup/install/multicluster/primary-remote)
+- [Install Primary-Remote](/ja/docs/setup/install/multicluster/primary-remote)
 
-- [Install Multi-Primary on Different Networks](/docs/setup/install/multicluster/multi-primary_multi-network)
+- [Install Multi-Primary on Different Networks](/ja/docs/setup/install/multicluster/multi-primary_multi-network)
 
-- [Install Primary-Remote on Different Networks](/docs/setup/install/multicluster/primary-remote_multi-network)
+- [Install Primary-Remote on Different Networks](/ja/docs/setup/install/multicluster/primary-remote_multi-network)
 
 {{< tip >}}
-For meshes that span more than two clusters, you may need to use more than
-one of these options. For example, you may have a primary cluster per region
-(i.e. multi-primary) where each zone has a remote cluster that uses the
-control plane in the regional primary (i.e. primary-remote).
+２クラスタ以上のメッシュを拡げるには、これらのオプションの1つ以上が必要になるかもしれません。例えば、リージョン毎にプライマリークラスターを置いて（例えばマルチプライマリー）、ぞれぞれのゾーンでリモートクラスタを置いて、各リージョンのプライマリコントロールプレーンを使う（例えば、プライマリーリモート）
 
-See [deployment models](/docs/ops/deployment/deployment-models) for more
-information.
+詳細は[deployment models](/ja/docs/ops/deployment/deployment-models)を参照
 {{< /tip >}}

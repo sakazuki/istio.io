@@ -6,18 +6,15 @@ keywords: [kubernetes,multicluster]
 test: yes
 owner: istio/wg-environments-maintainers
 ---
-Follow this guide to install the Istio control plane on both `cluster1` and
-`cluster2`, making each a {{< gloss >}}primary cluster{{< /gloss >}}. Both
-clusters reside on the `network1` network, meaning there is direct
-connectivity between the pods in both clusters.
+このガイドでは、Istioコントロールプレーンを `cluster1` と`cluster2` 両方にインストールして、
+それぞれを{{< gloss >}}primary cluster{{< /gloss >}}にします。
+両方のクラスタを`network1`ネットワーク上に並べます。つまり両方のクラスタ内のポッド間は直接接続できます。
 
-Before proceeding, be sure to complete the steps under
-[before you begin](/docs/setup/install/multicluster/before-you-begin).
+進める前に、[before you begin](/ja/docs/setup/install/multicluster/before-you-begin)のステップを確実に完了してください。
 
-In this configuration, each control plane observes the API Servers in both
-clusters for endpoints.
+この設定では、それぞれのコントロールプレーンが、エンドポイントのために両方のクラスタのAPI Serverを監視します。
 
-Service workloads communicate directly (pod-to-pod) across cluster boundaries.
+サービスワークロードは、クラスタを跨いで直接ポッド間で通信します。
 
 {{< image width="75%"
     link="arch.svg"
@@ -26,7 +23,7 @@ Service workloads communicate directly (pod-to-pod) across cluster boundaries.
 
 ## Configure `cluster1` as a primary
 
-Create the Istio configuration for `cluster1`:
+`cluster1` 用のIstio設定を作成します
 
 {{< text bash >}}
 $ cat <<EOF > cluster1.yaml
@@ -42,7 +39,7 @@ spec:
 EOF
 {{< /text >}}
 
-Apply the configuration to `cluster1`:
+Istio設定を`cluster1`に適用します
 
 {{< text bash >}}
 $ istioctl install --context="${CTX_CLUSTER1}" -f cluster1.yaml
@@ -50,7 +47,7 @@ $ istioctl install --context="${CTX_CLUSTER1}" -f cluster1.yaml
 
 ## Configure `cluster2` as a primary
 
-Create the Istio configuration for `cluster2`:
+`cluster2` 用のIstio設定を作成します
 
 {{< text bash >}}
 $ cat <<EOF > cluster2.yaml
@@ -66,7 +63,8 @@ spec:
 EOF
 {{< /text >}}
 
-Apply the configuration to `cluster2`:
+
+Istio設定を`cluster2`に適用します
 
 {{< text bash >}}
 $ istioctl install --context="${CTX_CLUSTER2}" -f cluster2.yaml
@@ -74,7 +72,7 @@ $ istioctl install --context="${CTX_CLUSTER2}" -f cluster2.yaml
 
 ## Enable Endpoint Discovery
 
-Install a remote secret in `cluster2` that provides access to `cluster1`’s API server.
+`cluster1`の API serverに接続する用に、`cluster2`　にリモートシークレットをインストールします
 
 {{< text bash >}}
 $ istioctl x create-remote-secret \
@@ -83,7 +81,7 @@ $ istioctl x create-remote-secret \
     kubectl apply -f - --context="${CTX_CLUSTER2}"
 {{< /text >}}
 
-Install a remote secret in `cluster1` that provides access to `cluster2`’s API server.
+`cluster2`の API serverに接続する用に、`cluster1`　にリモートシークレットをインストールします
 
 {{< text bash >}}
 $ istioctl x create-remote-secret \
@@ -92,9 +90,8 @@ $ istioctl x create-remote-secret \
     kubectl apply -f - --context="${CTX_CLUSTER1}"
 {{< /text >}}
 
-**Congratulations!** You successfully installed an Istio mesh across multiple
-primary clusters!
+**おめでとう!** マルチプライマリクラスタのIstioメッシュのインストールに成功しました。
 
 ## Next Steps
 
-You can now [verify the installation](/docs/setup/install/multicluster/verify).
+You can now [verify the installation](/ja/docs/setup/install/multicluster/verify).

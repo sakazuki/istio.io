@@ -6,26 +6,19 @@ keywords: [kubernetes,multicluster]
 test: yes
 owner: istio/wg-environments-maintainers
 ---
-Follow this guide to install the Istio control plane on `cluster1` (the
-{{< gloss >}}primary cluster{{< /gloss >}}) and configure `cluster2` (the
-{{< gloss >}}remote cluster{{< /gloss >}}) to use the control plane in
-`cluster1`. Cluster `cluster1` is on the `network1` network, while `cluster2`
-is on the `network2` network. This means there is no direct connectivity
-between pods across cluster boundaries.
+このガイドでは、Istioコントロールプレーンを `cluster1` ({{< gloss >}}primary cluster{{< /gloss >}}) にインストールして、`cluster2` ({{< gloss >}}remote cluster{{< /gloss >}})　を`cluster1`のコントロールプレーンを使うように設定します。
+`cluster1` クラスタは `network1`ネットワーク上に
+`cluster2` クラスタは `network2`ネットワーク上に置きます。
+つまり両方のクラスタ内のポッド間は直接接続できないことを意味します。
 
-Before proceeding, be sure to complete the steps under
-[before you begin](/docs/setup/install/multicluster/before-you-begin).
+進める前に、[before you begin](/ja/docs/setup/install/multicluster/before-you-begin)のステップを確実に完了してください。
 
-In this configuration, cluster `cluster1` will observe the API Servers in
-both clusters for endpoints. In this way, the control plane will be able to
-provide service discovery for workloads in both clusters.
+この設定では、`cluster1` が、エンドポイントのために両方のクラスタを監視します。これにより、コントロールプレーンは両方のクラスタのワークロードのためにサービスディスカバリを提供できるようになります。
 
-Service workloads across cluster boundaries communicate indirectly, via
-dedicated gateways for [east-west](https://en.wikipedia.org/wiki/East-west_traffic)
-traffic. The gateway in each cluster must be reachable from the other cluster.
+クラスタ境界を跨ぐサービスワークロードは、[east-west](https://en.wikipedia.org/wiki/East-west_traffic)通信用のゲートウェイ経由で間接的に通信します。
+それぞれのクラスタのゲートウェイは、他のクラスタから到達可能でなければなりません。
 
-Services in `cluster2` will reach the control plane in `cluster1` via the
-same east-west gateway.
+`cluster2` のサービスは、 同じeast-westゲートウェイ経由で`cluster1` のコントロールプレーンに到達します。
 
 {{< image width="75%"
     link="arch.svg"
@@ -33,18 +26,15 @@ same east-west gateway.
     >}}
 
 {{< tip >}}
-Today, the remote profile will install an istiod server in the remote
-cluster which will be used for CA and webhook injection for workloads
-in that cluster. Service discovery, however, will be directed to the
-control plane in the primary cluster.
+現在は、リモートプロファイルは、istiodサーバーをリモートクラスタにインストールします。
+リモートクラスターのistiodサーバーはそのクラスタのワークロードの認証局とインジェクションフックに使われます。しかしながら、サービスディスカバリはプライマリクラスターのコントロールプレーンにリダイレクトされます。
 
-Future releases will remove the need for having an istiod in the
-remote cluster altogether. Stay tuned!
+将来のリリースでは、リモートクラスタにistiodをインストールする必要がなくなります。乞うご期待！
 {{< /tip >}}
 
 ## Set the default network for `cluster1`
 
-If the istio-system namespace is already created, we need to set the cluster's network there:
+istio-system ネームスペースが作成済みの場合、クラスタネットワークのラベルをセットする必要があります
 
 {{< text bash >}}
 $ kubectl --context="${CTX_CLUSTER1}" get namespace istio-system && \
@@ -53,7 +43,7 @@ $ kubectl --context="${CTX_CLUSTER1}" get namespace istio-system && \
 
 ## Configure `cluster1` as a primary
 
-Create the Istio configuration for `cluster1`:
+`cluster1` 用のIstio設定を作成します
 
 {{< text bash >}}
 $ cat <<EOF > cluster1.yaml
@@ -69,7 +59,7 @@ spec:
 EOF
 {{< /text >}}
 
-Apply the configuration to `cluster1`:
+Istio設定を`cluster1`に適用します
 
 {{< text bash >}}
 $ istioctl install --context="${CTX_CLUSTER1}" -f cluster1.yaml
@@ -77,11 +67,7 @@ $ istioctl install --context="${CTX_CLUSTER1}" -f cluster1.yaml
 
 ## Install the east-west gateway in `cluster1`
 
-Install a gateway in `cluster1` that is dedicated to east-west traffic. By
-default, this gateway will be public on the Internet. Production systems may
-require additional access restrictions (e.g. via firewall rules) to prevent
-external attacks. Check with your cloud vendor to see what options are
-available.
+east-west通信用に、`cluster1` にゲートウェイをインストールします。標準ではこのゲートウェイはインターネットに公開されます。商用システムなら追加でアクセス制限（例えばファイヤーウォールルールで）をおこない外部からの攻撃を防ぐ必要があるかもしれません。ご利用のクラウドベンダーでどんなオプションが使えるかチェックしてください。
 
 {{< text bash >}}
 $ @samples/multicluster/gen-eastwest-gateway.sh@ \
@@ -90,7 +76,7 @@ $ @samples/multicluster/gen-eastwest-gateway.sh@ \
 {{< /text >}}
 
 {{< warning >}}
-If the control-plane was installed with a revision, add the `--revision rev` flag to the `gen-eastwest-gateway.sh` command.
+コントロールプレーンがリビジョン付きでインストールされている場合は、`gen-eastwest-gateway.sh` コマンドに  `--revision rev` フラグを追加してください。
 {{< /warning >}}
 
 Wait for the east-west gateway to be assigned an external IP address:
@@ -103,8 +89,7 @@ istio-eastwestgateway   LoadBalancer   10.80.6.124   34.75.71.237   ...       51
 
 ## Expose the control plane in `cluster1`
 
-Before we can install on `cluster2`, we need to first expose the control plane in
-`cluster1` so that services in `cluster2` will be able to access service discovery:
+`cluster2` にインストールする前に、`cluster2`のサービスが、サービスディスカバリに接続できるように、`cluster1` のコントロールプレーンを公開する必要があります。
 
 {{< text bash >}}
 $ kubectl apply --context="${CTX_CLUSTER1}" -n istio-system -f \
@@ -113,11 +98,7 @@ $ kubectl apply --context="${CTX_CLUSTER1}" -n istio-system -f \
 
 ## Expose services in `cluster1`
 
-Since the clusters are on separate networks, we also need to expose all user
-services (*.local) on the east-west gateway in both clusters. While this
-gateway is public on the Internet, services behind it can only be accessed by
-services with a trusted mTLS certificate and workload ID, just as if they were
-on the same network.
+それぞれのクラスタは別のネットワークにいるので、両方のクラスタで全てのサービス(*.local) を east-westゲートウェイ上に公開する必要があります。このゲートウェイはインターネットに公開されているので、ゲートウェイ配下のサービスは、信頼できるmTLS証明書とワークロードIDによってのみアクセス可能です。ちょうど同じネットワーク上にいる時と同様にです。
 
 {{< text bash >}}
 $ kubectl --context="${CTX_CLUSTER1}" apply -n istio-system -f \
@@ -126,7 +107,7 @@ $ kubectl --context="${CTX_CLUSTER1}" apply -n istio-system -f \
 
 ## Set the default network for `cluster2`
 
-If the istio-system namespace is already created, we need to set the cluster's network there:
+istio-system ネームスペースが作成済みの場合、クラスタネットワークのラベルをセットする必要があります。
 
 {{< text bash >}}
 $ kubectl --context="${CTX_CLUSTER2}" get namespace istio-system && \
@@ -135,18 +116,13 @@ $ kubectl --context="${CTX_CLUSTER2}" get namespace istio-system && \
 
 ## Enable API Server Access to `cluster2`
 
-Before we can configure the remote cluster, we first have to give the control
-plane in `cluster1` access to the API Server in `cluster2`. This will do the
-following:
+リモートクラスタを設定する前に、まず `cluster1`のコントロールプレーンを `cluster2`のAPI Serverにアクセスさせる必要があります。これは次のようにやります。
 
-- Enables the control plane to authenticate connection requests from
-  workloads running in `cluster2`. Without API Server access, the control
-  plane will reject the requests.
+- コントロールプレーンが、`cluster2`で稼働しているワークロードからの接続リクエストを認証できるようにします。API Serverに接続することなしに、コントロールプレーンは接続リクエストを拒絶します。
 
-- Enables discovery of service endpoints running in `cluster2`.
+- `cluster2`で稼働しているサービスエンドポイントのディスカバリを可能にします。
 
-To provide API Server access to `cluster2`, we generate a remote secret and
-apply it to `cluster1`:
+`cluster2`の API serverに接続する用に、リモートシークレットを作成して、`cluster1`にインストールします
 
 {{< text bash >}}
 $ istioctl x create-remote-secret \
@@ -157,7 +133,7 @@ $ istioctl x create-remote-secret \
 
 ## Configure `cluster2` as a remote
 
-Save the address of `cluster1`’s east-west gateway.
+`cluster1`のeast-westゲートウェイのアドレスを保存します。
 
 {{< text bash >}}
 $ export DISCOVERY_ADDRESS=$(kubectl \
@@ -166,7 +142,7 @@ $ export DISCOVERY_ADDRESS=$(kubectl \
     -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 {{< /text >}}
 
-Now create a remote configuration on `cluster2`.
+`cluster2` 用のリモートIstio設定を作成します
 
 {{< text bash >}}
 $ cat <<EOF > cluster2.yaml
@@ -183,7 +159,7 @@ spec:
 EOF
 {{< /text >}}
 
-Apply the configuration to `cluster2`:
+Istio設定を`cluster2`に適用します
 
 {{< text bash >}}
 $ istioctl install --context="${CTX_CLUSTER2}" -f cluster2.yaml
@@ -191,8 +167,7 @@ $ istioctl install --context="${CTX_CLUSTER2}" -f cluster2.yaml
 
 ## Install the east-west gateway in `cluster2`
 
-As we did with `cluster1` above, install a gateway in `cluster2` that is dedicated
-to east-west traffic and expose user services.
+上で`cluster1` にやったように、`cluster2` のeast-west通信用にゲートウェイをインストールします。
 
 {{< text bash >}}
 $ @samples/multicluster/gen-eastwest-gateway.sh@ \
@@ -200,7 +175,7 @@ $ @samples/multicluster/gen-eastwest-gateway.sh@ \
     istioctl --context="${CTX_CLUSTER2}" install -y -f -
 {{< /text >}}
 
-Wait for the east-west gateway to be assigned an external IP address:
+east-westゲートウェイに external IP addressが割り当てられるまで待ちます。
 
 {{< text bash >}}
 $ kubectl --context="${CTX_CLUSTER2}" get svc istio-eastwestgateway -n istio-system
@@ -210,16 +185,15 @@ istio-eastwestgateway   LoadBalancer   10.0.12.121   34.122.91.98   ...       51
 
 ## Expose services in `cluster2`
 
-As we did with `cluster1` above, expose services via the east-west gateway.
+上で`cluster1` にやったように、サービスをeast-westゲートウェイに公開します。
 
 {{< text bash >}}
 $ kubectl --context="${CTX_CLUSTER2}" apply -n istio-system -f \
     @samples/multicluster/expose-services.yaml@
 {{< /text >}}
 
-**Congratulations!** You successfully installed an Istio mesh across primary
-and remote clusters on different networks!
+**おめでとう!** 異なるネットワークでプライマリ・リモートクラスタのIstioメッシュのインストールに成功しました。
 
 ## Next Steps
 
-You can now [verify the installation](/docs/setup/install/multicluster/verify).
+You can now [verify the installation](/ja/docs/setup/install/multicluster/verify).

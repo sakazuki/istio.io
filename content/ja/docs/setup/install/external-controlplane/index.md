@@ -10,56 +10,51 @@ owner: istio/wg-environments-maintainers
 test: yes
 ---
 
-This guide walks you through the process of installing an {{< gloss >}}external control plane{{< /gloss >}}
-and then connecting one or more {{< gloss "remote cluster" >}}remote clusters{{< /gloss >}} to it.
-The external control plane [deployment model](/docs/ops/deployment/deployment-models/#control-plane-models)
-allows a mesh operator  to install and manage a control plane on an external cluster, separate from the data
-plane cluster (or multiple clusters) comprising the mesh. This deployment model allows a clear separation
-between mesh operators and mesh administrators. Mesh operators install and manage Istio control planes while mesh
-admins only need to configure the mesh.
+このガイドは、{{< gloss >}}external control plane{{< /gloss >}}をインストールして、一つまたはそれ以上の
+{{< gloss "remote cluster" >}}remote clusters{{< /gloss >}}を接続するプロセスを案内します。  
+外部コントロールプレーン[deployment model](/docs/ops/deployment/deployment-models/#control-plane-models)では
+メッシュオペレータは、メッシュを構成するデータプレーンクラスタ（または複数クラスタ群）とは別の外部のクラスタにコントロールプレーンをインストールして管理することができます。  
+このデプロイメントモデルでは、メッシュオペレータとメッシュ管理者間の明確な分離ができます。
+メッシュオペレータはIstioコントロールプレーンをインストール・管理しますが、メッシュ管理者はメッシュを設定するだけでよいです。
 
 {{< image width="75%"
     link="external-controlplane.svg"
     caption="External control plane cluster and remote cluster"
     >}}
 
-Envoy proxies (sidecars and gateways) running in the remote cluster access the external istiod via an ingress gateway
-which exposes the endpoints needed for discovery, CA, injection, and validation.
+リモートクラスタで稼働しているEnvoyプロキシ(サイドカーとゲートウェイ)は、ingress gateway経由で外部のistiodにアクセスします。
+このingress gatewayは、ディスカバリ、CA、インジェクション、検証のために必要なエンドポイントを公開しています。
 
-While configuration and management of the external control plane is done by the mesh operator in the external cluster,
-the first remote cluster connected to an external control plane serves as the config cluster for the mesh itself.
-The mesh administrator will use the config cluster to configure the mesh resources (gateways, virtual services, etc.)
-in addition to the mesh services themselves. The external control plane will remotely access this configuration from
-the Kubernetes API server, as shown in the above diagram.
+外部コントロールプレーンの設定と管理は外部クラスタのメッシュオペレータによっておこなわれますが、
+（外部コントロールプレーンに接続した）一つ目のリモートクラスタは、メッシュ自身の設定クラスタとして動作します。
+メッシュ管理者は設定クラスタを使って、メッシュサービス自身を設定するのに加えて、メッシュリソース（ゲートウェイ、仮想サービス、他）を設定します。  
+外部コントロールプレーンは上図のようにリモートからKubernetes APIサーバ経由でこの設定にアクセスします。
+
 
 ## Before you begin
 
 ### Clusters
 
-This guide requires that you have two Kubernetes clusters with any of the
-supported Kubernetes versions: {{< supported_kubernetes_versions >}}.
+このガイドでは、2つのKubernetesクラスタが必要です。
+Kuberentesクラスタは次のサポートバージョンのいずれか：{{< supported_kubernetes_versions >}}
 
-The first cluster will host the {{< gloss >}}external control plane{{< /gloss >}} installed in the
-`external-istiod` namespace. An ingress gateway is also installed in the `istio-system` namespace to provide
-cross-cluster access to the external control plane.
+最初のクラスタには、`external-istiod`ネームスペースに{{< gloss >}}external control plane{{< /gloss >}}がインストールされます。
+また`istio-system`ネームスペースに、ingress gatewayもインストールされ外部コントロールプレーンへのクラスタを跨いだ接続を可能にします。
 
-The second cluster is a {{< gloss >}}remote cluster{{< /gloss >}} that will run the mesh application workloads.
-Its Kubernetes API server also provides the mesh configuration used by the external control plane (istiod)
-to configure the workload proxies.
+2つ目のクラスタは、{{< gloss >}}remote cluster{{< /gloss >}}です。メッシュアプリケーションのワークロードが動きます。
+このKubernetes APIサーバは、外部コントロールプレーン(istiod)がワークロードのプロキシ設定をするのに使うメッシュ設定を提供します。
 
 ### API server access
 
-The Kubernetes API server in the remote cluster must be accessible to the external
-control plane cluster. Many cloud providers make API servers publicly accessible
-via network load balancers (NLBs). If the API server is not directly accessible, you will
-need to modify the installation procedure to enable access. For example, the
-[east-west](https://en.wikipedia.org/wiki/East-west_traffic) gateway used in a
-[multicluster configuration](#adding-clusters) could also be used to enable access
-to the API server.
+リモートクラスタのKubernetes APIサーバは、外部コントロールプレーンのクラスタから接続できないといけません。
+多くのクラウドプロバイダーはネットワークロードバランサー(NLB)経由で、APIサーバにパブリックな接続ができるようにしています。
+APIサーバに直接接続できない場合、接続できるようにインストール手順を修正する必要があります。
+例えば、[multicluster configuration](#adding-clusters)で使われる[east-west](https://en.wikipedia.org/wiki/East-west_traffic) gatewayを使って
+APIサーバへの接続をできるようにもできます。
 
 ### Environment Variables
 
-The following environment variables will be used throughout to simplify the instructions:
+手順をシンプルにするために、全体を通じて次の環境変数を使います。
 
 Variable | Description
 -------- | -----------
@@ -69,7 +64,7 @@ Variable | Description
 `EXTERNAL_ISTIOD_ADDR` | The hostname for the ingress gateway on the external control plane cluster. This is used by the remote cluster to access the external control plane.
 `SSL_SECRET_NAME` | The name of the secret that holds the TLS certs for the ingress gateway on the external control plane cluster.
 
-Set the `CTX_EXTERNAL_CLUSTER`, `CTX_REMOTE_CLUSTER`, and `REMOTE_CLUSTER_NAME` now. You will set the others later.
+ここで`CTX_EXTERNAL_CLUSTER`, `CTX_REMOTE_CLUSTER`, `REMOTE_CLUSTER_NAME` を設定しましょう。それ以外は後で設定します。
 
 {{< text syntax=bash snip_id=none >}}
 $ export CTX_EXTERNAL_CLUSTER=<your external cluster context>
@@ -81,13 +76,13 @@ $ export REMOTE_CLUSTER_NAME=<your remote cluster name>
 
 ### Mesh operator steps
 
-A mesh operator is responsible for installing and managing the external Istio control plane on the external cluster.
-This includes configuring an ingress gateway on the external cluster, which allows the remote cluster to access the control plane,
-and installing the sidecar injector webhook configuration on the remote cluster so that it will use the external control plane.
+メッシュオペレータは、外部クラスタに、外部Istioコントロールプレーンのインストールと管理に責任があります。
+これは外部クラスタのingress gatewayを設定することも含みます。リモートクラスタに、コントロールプレーンへのアクセスを許可し、
+外部コントロールプレーンを使うように、リモートクラスタのサイドカーインジェクターwebhook設定をインストールできるようにします。
 
 #### Set up a gateway in the external cluster
 
-1. Create the Istio install configuration for the ingress gateway that will expose the external control plane ports to other clusters:
+1. Istioインストール設定を作成します。この設定は外部コントロールプレーンのポートを他のクラスターに公開します。
 
     {{< text bash >}}
     $ cat <<EOF > controlplane-gateway.yaml
@@ -115,13 +110,13 @@ and installing the sidecar injector webhook configuration on the remote cluster 
     EOF
     {{< /text >}}
 
-    Then, install the gateway in the `istio-system` namespace of the external cluster:
+    そして、外部クラスタの`istio-system`ネームスペースにゲートウェイをインストールします。
 
     {{< text bash >}}
     $ istioctl install -f controlplane-gateway.yaml --context="${CTX_EXTERNAL_CLUSTER}"
     {{< /text >}}
 
-1. Run the following command to confirm that the ingress gateway is up and running:
+1. 次のコマンドを実行して、ingress gatewayが起動してRunning状態であることを確認する
 
     {{< text bash >}}
     $ kubectl get po -n istio-system --context="${CTX_EXTERNAL_CLUSTER}"
@@ -130,15 +125,16 @@ and installing the sidecar injector webhook configuration on the remote cluster 
     istiod-68488cd797-mq8dn                1/1     Running   0          38s
     {{< /text >}}
 
-    You will notice an istiod deployment is also created in the `istio-system` namespace. This is used to configure the ingress gateway
-    and is NOT the control plane used by remote clusters.
+    `istio-system` ネームスペースにistiod デプロイメントも作成されていることに気づくでしょう。これはingress gatewayを設定するのに使われます。リモートクラスタから使われるコントロールプレーンではありません。
 
     {{< tip >}}
-    This ingress gateway could be configured to host multiple external control planes, in different namespaces on the external cluster,
-    although in this example you will only deploy a single external istiod in the `external-istiod` namespace.
+    この例では、 `external-istiod` ネームスペースに一つの外部istiodをデプロイするだけですが、
+    外部クラスタの違うネームスペースに複数の外部コントロールプレーンをホストするように、
+    ingress gatewayを設定することもできます。
     {{< /tip >}}
 
-1. Configure your environment to expose the Istio ingress gateway service using a public hostname with TLS. Set the `EXTERNAL_ISTIOD_ADDR` environment variable to the hostname and `SSL_SECRET_NAME` environment variable to the secret that holds the TLS certs:
+1. Istio ingress gatewayサービスを公開ホスト名とTLSで公開するために環境変数を設定する
+  `EXTERNAL_ISTIOD_ADDR`環境変数にホスト名を、`SSL_SECRET_NAME`環境変数にTLS証明書を保持するシークレット名を設定する。
 
     {{< text syntax=bash snip_id=none >}}
     $ export EXTERNAL_ISTIOD_ADDR=<your external istiod host>
@@ -147,10 +143,9 @@ and installing the sidecar injector webhook configuration on the remote cluster 
 
 #### Set up the remote config cluster
 
-1. Create the remote cluster's Istio install configuration, which installs the injection webhook that uses the
-    external control plane's injector, instead of a locally deployed one. Because this cluster
-    also serves as the config cluster, the Istio CRDs and `istio` configmap (i.e., global mesh config)
-    are also installed by setting `base.enabled` and `pilot.configMap` to `true`:
+1. リモートクラスタのIstioインストール設定を作成します。この設定は、ローカルでなく外部コントロールプレーンのインジェクターを使うインジェクションフックをインストールします。
+  このクラスタは設定クラスタとしても動作するので、 
+  `base.enabled` と `pilot.configMap`を`true`に設定することで、Istio CRDと `istio`コンフィグマップ（例：グローバルメッシュ設定）もインストールされます。
 
     {{< text syntax=bash snip_id=get_remote_config_cluster_iop >}}
     $ cat <<EOF > remote-config-cluster.yaml
@@ -175,14 +170,14 @@ and installing the sidecar injector webhook configuration on the remote cluster 
     EOF
     {{< /text >}}
 
-    Then, install the configuration on the remote cluster:
+    そして、リモートクラスタにその設定をインストールする。
 
     {{< text bash >}}
     $ kubectl create namespace external-istiod --context="${CTX_REMOTE_CLUSTER}"
     $ istioctl manifest generate -f remote-config-cluster.yaml | kubectl apply --context="${CTX_REMOTE_CLUSTER}" -f -
     {{< /text >}}
 
-1. Confirm that the remote cluster's webhook configuration has been installed:
+1. リモートクラスタのwebhook設定がインストールされたのを確認する
 
     {{< text bash >}}
     $ kubectl get mutatingwebhookconfiguration --context="${CTX_REMOTE_CLUSTER}"
@@ -192,15 +187,14 @@ and installing the sidecar injector webhook configuration on the remote cluster 
 
 #### Set up the control plane in the external cluster
 
-1. Create the `external-istiod` namespace, which will be used to host the external control plane:
+1. 外部コントロールプレーンをホストする`external-istiod`ネームスペースを作成する
 
     {{< text bash >}}
     $ kubectl create namespace external-istiod --context="${CTX_EXTERNAL_CLUSTER}"
     {{< /text >}}
 
-1. The control plane in the external cluster needs access to the remote cluster to discover services, endpoints,
-    and pod attributes. Create a secret with credentials to access the remote cluster’s `kube-apiserver` and install
-    it in the external cluster:
+1. 外部クラスタのコントロールプレーンが、サービス、エンドポイント、ポッド属性を発見できるようにリモートクラスタへのアクセスが必要です。
+リモートクラスタの`kube-apiserver`にアクセスするクレデンシャルが入ったシークレットを作成し、外部クラスタにインストールする。
 
     {{< text bash >}}
     $ kubectl create sa istiod-service-account -n external-istiod --context="${CTX_EXTERNAL_CLUSTER}"
@@ -211,11 +205,9 @@ and installing the sidecar injector webhook configuration on the remote cluster 
       kubectl apply -f - --context="${CTX_EXTERNAL_CLUSTER}"
     {{< /text >}}
 
-1. Create the Istio configuration to install the control plane in the `external-istiod` namespace of the external cluster.
-   Notice that istiod is configured to use the locally mounted `istio` configmap and the `SHARED_MESH_CONFIG` environment
-   variable is set to `istio`. This instructs istiod to merge the values set by the mesh admin in the config cluster's
-   configmap with the values in the local configmap set by the mesh operator, here, which will take precedence
-   if there are any conflicts:
+1. Istio設定を作成します。この設定は、外部クラスタの`external-istiod` ネームスペースにコントロールプレーンをインストールします。
+   istiodは、ローカルでマウントされた `istio`コンフィグマップと、`SHARED_MESH_CONFIG`環境変数（値は`istio`と設定されている）を使うように設定されていることに注意してください。
+   この指定はistiodに設定クラスタのコンフィグマップにメッシュ管理者によって設定された設定値と、メッシュオペレータによって設定されたローカルコンフィグマップの設定値をマージするよう、何か不整合があった場合にはローカルコンフィグマップの設定値を優先するよう指示します。   
 
     {{< text syntax=bash snip_id=get_external_istiod_iop >}}
     $ cat <<EOF > external-istiod.yaml
@@ -278,13 +270,13 @@ and installing the sidecar injector webhook configuration on the remote cluster 
     EOF
     {{< /text >}}
 
-    Then, apply the Istio configuration on the external cluster:
+    そして、外部クラスタにIstio設定を適用する
 
     {{< text bash >}}
     $ istioctl install -f external-istiod.yaml --context="${CTX_EXTERNAL_CLUSTER}"
     {{< /text >}}
 
-1. Confirm that the external istiod has been successfully deployed:
+1. 外部istiodが正常にデプロイされたのを確認する
 
     {{< text bash >}}
     $ kubectl get po -n external-istiod --context="${CTX_EXTERNAL_CLUSTER}"
@@ -292,8 +284,7 @@ and installing the sidecar injector webhook configuration on the remote cluster 
     istiod-779bd6fdcf-bd6rg   1/1     Running   0          70s
     {{< /text >}}
 
-1. Create the Istio `Gateway`, `VirtualService`, and `DestinationRule` configuration to route traffic from the ingress
-    gateway to the external control plane:
+1. Istio `Gateway`, `VirtualService`, と `DestinationRule`設定を作成し、通信をingress gatewayから外部コントロールプレーンにルーティングします。
 
     {{< text syntax=bash snip_id=get_external_istiod_gateway_config >}}
     $ cat <<EOF > external-istiod-gw.yaml
@@ -374,7 +365,7 @@ and installing the sidecar injector webhook configuration on the remote cluster 
     EOF
     {{< /text >}}
 
-    Then, apply the configuration on the external cluster:
+    そして、外部クラスタにこの設定を適用する
 
     {{< text bash >}}
     $ kubectl apply -f external-istiod-gw.yaml --context="${CTX_EXTERNAL_CLUSTER}"
@@ -382,19 +373,19 @@ and installing the sidecar injector webhook configuration on the remote cluster 
 
 ### Mesh admin steps
 
-Now that Istio is up and running, a mesh administrator only needs to deploy and configure services in the mesh,
-including gateways, if needed.
+さて、Istioは起動して稼働しています。
+メッシュ管理者は、あとメッシュ（必要ならゲートウェイも含め）にサービスをデプロイして設定すればよいだけです。
 
 #### Deploy a sample application
 
-1. Create, and label for injection, the `sample` namespace on the remote cluster:
+1. リモートクラスタに`sample`ネームスペースを作成し、インジェクション用のラベルを付けます。
 
     {{< text bash >}}
     $ kubectl create --context="${CTX_REMOTE_CLUSTER}" namespace sample
     $ kubectl label --context="${CTX_REMOTE_CLUSTER}" namespace sample istio-injection=enabled
     {{< /text >}}
 
-1. Deploy the `helloworld` (`v1`) and `sleep` samples:
+1. `helloworld` (`v1`) と `sleep` のサンプルをデプロイする
 
     {{< text bash >}}
     $ kubectl apply -f @samples/helloworld/helloworld.yaml@ -l service=helloworld -n sample --context="${CTX_REMOTE_CLUSTER}"
@@ -402,7 +393,7 @@ including gateways, if needed.
     $ kubectl apply -f @samples/sleep/sleep.yaml@ -n sample --context="${CTX_REMOTE_CLUSTER}"
     {{< /text >}}
 
-1. Wait a few seconds for the `helloworld` and `sleep` pods to be running with sidecars injected:
+1. `helloworld` と `sleep`のポッドが、サイドカーと共に稼働になるまで数秒待ちます。
 
     {{< text bash >}}
     $ kubectl get pod -n sample --context="${CTX_REMOTE_CLUSTER}"
@@ -411,7 +402,7 @@ including gateways, if needed.
     sleep-64d7d56698-wqjnm           2/2     Running   0          9s
     {{< /text >}}
 
-1. Send a request from the `sleep` pod to the `helloworld` service:
+1. `sleep`ポッドから`helloworld`サービスにリクエストを送ります。
 
     {{< text bash >}}
     $ kubectl exec --context="${CTX_REMOTE_CLUSTER}" -n sample -c sleep \
@@ -422,7 +413,7 @@ including gateways, if needed.
 
 #### Enable gateways
 
-1. Enable an ingress gateway on the remote cluster:
+1. リモートクラスタのingress gatewayを有効にする
 
     {{< text bash >}}
     $ cat <<EOF > istio-ingressgateway.yaml
@@ -443,7 +434,7 @@ including gateways, if needed.
     $ istioctl install -f istio-ingressgateway.yaml --context="${CTX_REMOTE_CLUSTER}"
     {{< /text >}}
 
-1. Enable an egress gateway, or other gateways, on the remote cluster (optional):
+1. リモートクラスタのegress gatewayまたは、その他のゲートウェイを有効にする（オプション）
 
     {{< text bash >}}
     $ cat <<EOF > istio-egressgateway.yaml
@@ -464,7 +455,7 @@ including gateways, if needed.
     $ istioctl install -f istio-egressgateway.yaml --context="${CTX_REMOTE_CLUSTER}"
     {{< /text >}}
 
-1. Confirm that the Istio ingress gateway is running:
+1. Istio ingress gatewayが稼働しているのを確認する
 
     {{< text bash >}}
     $ kubectl get pod -l app=istio-ingressgateway -n external-istiod --context="${CTX_REMOTE_CLUSTER}"
@@ -472,14 +463,13 @@ including gateways, if needed.
     istio-ingressgateway-7bcd5c6bbd-kmtl4   1/1     Running   0          8m4s
     {{< /text >}}
 
-1. Expose the `helloworld` application on the ingress gateway:
+1. `helloworld`アプリケーションをingress gatewayに公開する
 
     {{< text bash >}}
     $ kubectl apply -f @samples/helloworld/helloworld-gateway.yaml@ -n sample --context="${CTX_REMOTE_CLUSTER}"
     {{< /text >}}
 
-1. Set the `GATEWAY_URL` environment variable
-    (see [determining the ingress IP and ports](/docs/tasks/traffic-management/ingress/ingress-control/#determining-the-ingress-ip-  and-ports) for details):
+1. `GATEWAY_URL`環境変数を設定する（詳細は [determining the ingress IP and ports](/docs/tasks/traffic-management/ingress/ingress-control/#determining-the-ingress-ip-and-ports) 参照）
 
     {{< text bash >}}
     $ export INGRESS_HOST=$(kubectl -n external-istiod --context="${CTX_REMOTE_CLUSTER}" get service istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
@@ -487,7 +477,7 @@ including gateways, if needed.
     $ export GATEWAY_URL=$INGRESS_HOST:$INGRESS_PORT
     {{< /text >}}
 
-1. Confirm you can access the `helloworld` application through the ingress gateway:
+1. `helloworld`アプリケーションがingress gateway経由でアクセスできるのを確認する
 
     {{< text bash >}}
     $ curl -s "http://${GATEWAY_URL}/hello"
@@ -498,20 +488,20 @@ including gateways, if needed.
 
 {{< boilerplate experimental >}}
 
-This section shows you how to expand an existing external control plane mesh to multicluster by adding another remote cluster.
-This allows you to easily distribute services and use [location-aware routing and fail over](/docs/tasks/traffic-management/locality-load-balancing/) to support high availability of your application.
+このセクションでは、既存の外部コントロールプレーンメッシュに、別のリモートクラスタを追加してマルチクラスタに拡張する方法を説明します。
+これにより簡単に複数のサービスを分散して、[location-aware routing and fail over](/docs/tasks/traffic-management/locality-load-balancing/) を使って、アプリケーションの高可用性をサポートすることができます。
 
 {{< image width="75%"
     link="external-multicluster.svg"
     caption="External control plane with multiple remote clusters"
     >}}
 
-Unlike the first remote cluster, the second and subsequent clusters added to the same external control plane do not
-provide mesh config, but instead are only sources of endpoint configuration, just like remote clusters in a
-[primary-remote](/docs/setup/install/multicluster/primary-remote_multi-network/) Istio multicluster configuration.
+最初のリモートクラスタと違って、同じ外部コントロールプレーンに追加される2つ目以降のクラスタはメッシュ設定を提供しません。
+代わりに、Istio複数クラスタ設定[primary-remote](/docs/setup/install/multicluster/primary-remote_multi-network/)のリモートクラスタのように
+エンドポイント設定の情報源とだけなります。
 
-To proceed, you'll need another Kubernetes cluster for the second remote cluster of the mesh. Set the following
-environment variables to the context name and cluster name of the cluster:
+先に進めるために、メッシュの2つ目のリモートクラスタとして別のKubernetesクラスタが必要です。
+次の環境変数に、コンテキスト名とクラスタ名を設定します。
 
 {{< text syntax=bash snip_id=none >}}
 $ export CTX_SECOND_CLUSTER=<your second remote cluster context>
@@ -520,8 +510,7 @@ $ export SECOND_CLUSTER_NAME=<your second remote cluster name>
 
 ### Register the new cluster
 
-1. Create a secret with credentials to allow the control plane to access the endpoints on the second remote cluster
-    and install it:
+1. コントロールプレーンが2つ目のリモートクラスタのエンドポイントにアクセスできるクレデンシャルが入ったシークレットを作成し、インストールする
 
     {{< text bash >}}
     $ istioctl x create-remote-secret \
@@ -532,16 +521,15 @@ $ export SECOND_CLUSTER_NAME=<your second remote cluster name>
       kubectl apply -f - --context="${CTX_REMOTE_CLUSTER}" #TODO use --context="{CTX_EXTERNAL_CLUSTER}" when #31946 is fixed.
     {{< /text >}}
 
-    Note that unlike the first remote cluster of the mesh, which also serves as the config cluster, the `--type` argument
-    is set to `remote` this time, instead of `config`.
+    設定クラスタとしても動作するメッシュの1つ目のリモートクラスタと違い、`--type`引数に、`config`ではなく今回は`remote`を設定することに注意してください。
 
     {{< tip >}}
-    Note that the new secret can be applied in either the remote (config) cluster or in the external cluster,
-    because the external istiod is watching for additions in both clusters.
+    外部istiodが両方のクラスタの追加を監視しているため
+    新しいシークレットはリモート(設定)クラスタまたは外部クラスタいずれかに適用できることに注意してください。
     {{< /tip >}}
 
-1. Create the remote Istio install configuration, which installs the injection webhook that uses the
-    external control plane's injector, instead of a locally deployed one:
+1. ローカルのインジェクターの代わりに、外部コントロールプレーンのインジェクターを使うインジェクションwebhookをインストールする
+  リモートistioインストール設定を作成する
 
     {{< text syntax=bash snip_id=get_second_config_cluster_iop >}}
     $ cat <<EOF > second-config-cluster.yaml
@@ -559,13 +547,13 @@ $ export SECOND_CLUSTER_NAME=<your second remote cluster name>
     EOF
     {{< /text >}}
 
-    Then, install the configuration on the remote cluster:
+    そして、リモートクラスタに設定をインストールする
 
     {{< text bash >}}
     $ istioctl manifest generate -f second-config-cluster.yaml | kubectl apply --context="${CTX_SECOND_CLUSTER}" -f -
     {{< /text >}}
 
-1. Confirm that the remote cluster's webhook configuration has been installed:
+1. リモートクラスタのwebhook設定がインストールされているのを確認する
 
     {{< text bash >}}
     $ kubectl get mutatingwebhookconfiguration --context="${CTX_SECOND_CLUSTER}"
@@ -575,7 +563,7 @@ $ export SECOND_CLUSTER_NAME=<your second remote cluster name>
 
 ### Setup east-west gateways
 
-1. Deploy east-west gateways on both remote clusters:
+1. 両方のリモートクラスタにeast-westゲートウェイをデプロイする
 
     {{< text bash >}}
     $ @samples/multicluster/gen-eastwest-gateway.sh@ \
@@ -595,7 +583,7 @@ $ export SECOND_CLUSTER_NAME=<your second remote cluster name>
         kubectl apply --context="${CTX_SECOND_CLUSTER}" -f -
     {{< /text >}}
 
-1. Wait for the east-west gateways to be assigned external IP addresses:
+1. east-westゲートウェイに外部IPが割り当てされるのを待つ
 
     {{< text bash >}}
     $ kubectl --context="${CTX_REMOTE_CLUSTER}" get svc istio-eastwestgateway -n external-istiod
@@ -609,7 +597,7 @@ $ export SECOND_CLUSTER_NAME=<your second remote cluster name>
     istio-eastwestgateway   LoadBalancer   10.0.12.121   34.122.91.99   ...       51s
     {{< /text >}}
 
-1. Expose services via the east-west gateways:
+1. サービスをeast-westゲートウェイに公開する
 
     {{< text bash >}}
     $ kubectl --context="${CTX_REMOTE_CLUSTER}" apply -n external-istiod -f \
@@ -623,14 +611,14 @@ $ export SECOND_CLUSTER_NAME=<your second remote cluster name>
 
 ### Validate the installation
 
-1. Create, and label for injection, the `sample` namespace on the remote cluster:
+1. リモートクラスタの`sample`ネームスペースを作成し、インジェクション用のラベルを付与する
 
     {{< text bash >}}
     $ kubectl create --context="${CTX_SECOND_CLUSTER}" namespace sample
     $ kubectl label --context="${CTX_SECOND_CLUSTER}" namespace sample istio-injection=enabled
     {{< /text >}}
 
-1. Deploy the `helloworld` (`v2`) and `sleep` samples:
+1. `helloworld` (`v2`) と `sleep`サンプルをデプロイする
 
     {{< text bash >}}
     $ kubectl apply -f @samples/helloworld/helloworld.yaml@ -l service=helloworld -n sample --context="${CTX_SECOND_CLUSTER}"
@@ -638,7 +626,7 @@ $ export SECOND_CLUSTER_NAME=<your second remote cluster name>
     $ kubectl apply -f @samples/sleep/sleep.yaml@ -n sample --context="${CTX_SECOND_CLUSTER}"
     {{< /text >}}
 
-1. Wait a few seconds for the `helloworld` and `sleep` pods to be running with sidecars injected:
+1. `helloworld` と `sleep`ポッドがサイドカー付きで稼働するのを数秒待つ
 
     {{< text bash >}}
     $ kubectl get pod -n sample --context="${CTX_SECOND_CLUSTER}"
@@ -647,7 +635,7 @@ $ export SECOND_CLUSTER_NAME=<your second remote cluster name>
     sleep-557747455f-wtdbr          2/2     Running   0          9s
     {{< /text >}}
 
-1. Send a request from the `sleep` pod to the `helloworld` service:
+1. `sleep` ポッドから `helloworld`サービスにリクエストを送る
 
     {{< text bash >}}
     $ kubectl exec --context="${CTX_SECOND_CLUSTER}" -n sample -c sleep \
@@ -656,8 +644,7 @@ $ export SECOND_CLUSTER_NAME=<your second remote cluster name>
     Hello version: v2, instance: helloworld-v2-54df5f84b-9hxgw
     {{< /text >}}
 
-1. Confirm that when accessing the `helloworld` application several times through the ingress gateway, both version `v1`
-   and `v2` are now being called:
+1. `helloworld` アプリケーションにingressゲートウェイ経由で数回アクセスすると、`v1`と`v2`両方のバージョンから応答があることを確認する
 
     {{< text bash >}}
     $ for i in {1..10}; do curl -s "http://${GATEWAY_URL}/hello"; done

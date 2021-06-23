@@ -10,7 +10,7 @@ Follow this guide to verify that your multicluster Istio installation is working
 properly.
 
 Before proceeding, be sure to complete the steps under
-[before you begin](/docs/setup/install/multicluster/before-you-begin) as well as
+[before you begin](/ja/docs/setup/install/multicluster/before-you-begin) as well as
 choosing and following one of the multicluster installation guides.
 
 In this guide, we will deploy the `HelloWorld` application `V1` to `cluster1`
@@ -26,7 +26,7 @@ which cluster received the requests.
 
 In order to make the `HelloWorld` service callable from any cluster, the DNS
 lookup must succeed in each cluster (see
-[deployment models](/docs/ops/deployment/deployment-models#dns-with-multiple-clusters)
+[deployment models](/ja/docs/ops/deployment/deployment-models#dns-with-multiple-clusters)
 for details). We will address this by deploying the `HelloWorld` Service to
 each cluster in the mesh.
 
@@ -176,5 +176,5 @@ clusters!
 
 ## Next Steps
 
-Check out the [locality load balancing tasks](/docs/tasks/traffic-management/locality-load-balancing)
+Check out the [locality load balancing tasks](/ja/docs/tasks/traffic-management/locality-load-balancing)
 to learn how to control the traffic across a multicluster mesh.
